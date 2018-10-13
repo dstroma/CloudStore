@@ -1,0 +1,15 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/test_driver.t
+t/encrypted.t
+lib/CloudStore.pm
+lib/CloudStore/Encrypted.pm
+lib/CloudStore/File.pm
+lib/CloudStore/Driver/Dropbox.pm
+lib/CloudStore/Driver/GoogleDrive.pm
+lib/CloudStore/Driver/Mock.pm
+lib/CloudStore/Driver/RackspaceCloudFiles.pm
+lib/CloudStore/Role/Driver.pm
+lib/CloudStore/Test/Driver.pm
