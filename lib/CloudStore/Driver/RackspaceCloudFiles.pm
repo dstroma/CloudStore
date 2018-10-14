@@ -5,7 +5,6 @@ package CloudStore::Driver::RackspaceCloudFiles;
 use Role::Tiny::With;
 with 'CloudStore::Role::Driver';
 
-use experimental 'signatures';
 use Carp qw(croak confess);
 use Scalar::Util qw/blessed/;
 use Try::Tiny;
@@ -27,7 +26,8 @@ Notes on Rackspace CloudFiles:
 
 =cut
 
-sub connect ($self, %params) {
+sub connect {
+  my ($self, %params) = @_;
   require WebService::Rackspace::CloudFiles;
   $self->{'_cf'} = WebService::Rackspace::CloudFiles->new(
     user => delete $params{'username'},
@@ -40,7 +40,8 @@ sub connect ($self, %params) {
   $self;
 }
 
-sub download ($self, $remote, $local) {
+sub download {
+  my ($self, $remote, $local) = @_;
   my ($remote_contname, $remote_filename) = _parse_remote_path($remote);
 
   my $cf   = $self->{'_cf'};
@@ -56,7 +57,8 @@ sub download ($self, $remote, $local) {
   }
 }
 
-sub upload ($self, $local, $remote) {
+sub upload {
+  my ($self, $local, $remote) = @_;
   my ($remote_contname, $remote_filename) = _parse_remote_path($remote);
 
   my $cf   = $self->{'_cf'};
@@ -111,20 +113,23 @@ sub find {
   return wantarray ? @obs : \@obs;
 }
 
-sub create_folder ($self, $name) {
+sub create_folder {
+  my ($self, $name) = @_;
   my $cf = $self->{'_cf'};
   $name = substr($name, 1) if substr($name, 0, 1) eq '/';
   $cf->create_container(name => $name);
 }
 
-sub get_folders ($self) {
+sub get_folders {
+  my ($self) = @_;
   my $cf     = $self->{'_cf'};
   my @containers = $cf->containers;
   #use Data::Dumper; warn Dumper \@containers;
   return map { $_->{name} } @containers;
 }
 
-sub delete_folder ($self, $name) {
+sub delete_folder {
+  my ($self, $name) = @_;
   my $cf   = $self->{'_cf'};
   $name = substr($name, 1) if substr($name, 0, 1) eq '/';
   my $cont = $cf->container(name => $name);
@@ -132,7 +137,8 @@ sub delete_folder ($self, $name) {
   1;
 }
 
-sub delete_file ($self, $remote) {
+sub delete_file {
+  my ($self, $remote) = @_;
   my ($remote_contname, $remote_filename) = _parse_remote_path($remote);
   my %params = @_ if @_ > 0 and @_ % 2 == 0;
 
@@ -158,7 +164,8 @@ sub delete_file ($self, $remote) {
   1;
 }
 
-sub make_file_object ($self, $orig) {
+sub make_file_object {
+  my ($self, $orig) = @_;
   require CloudStore::File;
   return CloudStore::File->new(
     original      => $orig,
@@ -167,7 +174,8 @@ sub make_file_object ($self, $orig) {
   );
 }
 
-sub _parse_remote_path ($path) {
+sub _parse_remote_path {
+  my ($path) = @_;
   if (ref $path and ref $path eq 'ARRAY') {
     return @$path;
   } elsif (ref $path and ref $path eq 'HASH') {

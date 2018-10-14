@@ -8,7 +8,6 @@ with 'CloudStore::Role::Driver';
 use WebService::Dropbox;
 use IO::File;
 use DateTime::Format::RFC3339;
-use experimental 'signatures';
 use List::Util 'maxstr';
 use Fcntl qw(SEEK_SET SEEK_END);
 use Carp qw(croak confess);
@@ -16,7 +15,8 @@ use constant MB => 1024*1024;
 
 CloudStore->_register_driver('Dropbox');
 
-sub connect ($self, %params) {
+sub connect {
+  my ($self, %params) = @_;
   my $dropbox = $self->{'_dbox'} = WebService::Dropbox->new({
     key     => delete $params{'key'},
     secret  => delete $params{'secret'},
@@ -26,7 +26,8 @@ sub connect ($self, %params) {
   $self;
 }
 
-sub download ($self, $remote, $local) {
+sub download {
+  my ($self, $remote, $local) = @_;
   my $_remote = _remote_path_parsed($remote);
   my ($_local, $should_close) = _coerce_to_filehandle('>', $local);
 
@@ -40,7 +41,8 @@ sub download ($self, $remote, $local) {
   return $result;
 }
 
-sub upload ($self, $local, $remote) {
+sub upload {
+  my ($self, $local, $remote) = @_;
   my $_remote = _remote_path_parsed($remote);
   my ($_local, $should_close) = _coerce_to_filehandle('<', $local);
 
@@ -101,23 +103,28 @@ sub find {
   return wantarray ? @files : \@files;
 }
 
-sub create_folder ($self, $name) {
+sub create_folder {
+  my ($self, $name) = @_;
   $self->{'_dbox'}->create_folder(_remote_path_parsed($name));
 }
 
-sub delete_folder ($self, $name) {
+sub delete_folder {
+  my ($self, $name) = @_;
   $self->delete_folder_or_file($name);
 }
 
-sub delete_file ($self, $name) {
+sub delete_file {
+  my ($self, $name) = @_;
   $self->delete_folder_or_file($name);
 }
 
-sub delete_folder_or_file ($self, $name) {
+sub delete_folder_or_file {
+  my ($self, $name) = @_;
   $self->{'_dbox'}->delete(_remote_path_parsed($name));
 }
 
-sub make_file_object ($self, $orig) {
+sub make_file_object {
+  my ($self, $orig) = @_;
   require CloudStore::File;
   return CloudStore::File->new(
     original      => $orig,
@@ -129,7 +136,8 @@ sub make_file_object ($self, $orig) {
   );
 }
 
-sub _remote_path_parsed ($arg) {
+sub _remote_path_parsed {
+  my ($arg) = @_;
   return $arg if substr($arg, 0, 3) eq 'id:';  # Special Dropbox id
   return $arg if substr($arg, 0, 3) eq 'rev:';
 
@@ -138,7 +146,8 @@ sub _remote_path_parsed ($arg) {
   return $arg;
 }
 
-sub _coerce_to_filehandle ($mode, $arg) {
+sub _coerce_to_filehandle {
+  my ($mode, $arg) = @_;
   # We expect $local will be a local file path, filehandle, or scalar ref.
   # We need to give back a filehandle.
   my $fh;
@@ -149,7 +158,8 @@ sub _coerce_to_filehandle ($mode, $arg) {
   return ($arg, 0);
 }
 
-sub _get_fh_size ($fh) {
+sub _get_fh_size {
+  my ($fh) = @_;
   my $cur_pos = tell($fh);
   seek($fh, 0, SEEK_END);
   my $size = tell($fh);
