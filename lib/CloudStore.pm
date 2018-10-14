@@ -122,11 +122,11 @@ to get or set remote file metadata or ability to fetch an old revision of a
 file.
 
 Various drivers are supplied out of the box, but you may write your own
-as well. Included in the distribution are drivers for Dropbox, Google Drive,
-and Rackspace CloudFiles. These drivers are somewhat simple glue code using
-preexisting CPAN modules such as Webservice::Dropbox (in the example of the
-Dropbox driver), but drivers could be implemented directly as standalone
-modules as well.
+as well. Included in this distribution are drivers for Dropbox and Rackspace
+CloudFiles. These drivers are somewhat simple glue code using preexisting
+CPAN modules such as Webservice::Dropbox (in the example of the Dropbox
+driver), but drivers could be implemented directly as standalone modules as
+well.
 
 =head1 TERMINOLOGY
 

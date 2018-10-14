@@ -8,7 +8,6 @@ lib/CloudStore.pm
 lib/CloudStore/Encrypted.pm
 lib/CloudStore/File.pm
 lib/CloudStore/Driver/Dropbox.pm
-lib/CloudStore/Driver/GoogleDrive.pm
 lib/CloudStore/Driver/Mock.pm
 lib/CloudStore/Driver/RackspaceCloudFiles.pm
 lib/CloudStore/Role/Driver.pm
