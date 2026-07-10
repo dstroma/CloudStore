@@ -4,6 +4,7 @@ requires 'Moo';
 requires 'Role::Tiny';
 requires 'Role::Tiny::With';
 requires 'DateTime';
+requires 'DateTime::Format::RFC3339';
 
 # Maybe change to recommends?
 requires 'Bytes::Random::Secure';

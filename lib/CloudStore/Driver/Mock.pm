@@ -2,9 +2,11 @@ use strict;
 use warnings;
 
 package CloudStore::Driver::Mock;
+
 use Role::Tiny::With;
 with 'CloudStore::Role::Driver';
 
+use DateTime;
 use Carp qw/confess confess/;
 use Scalar::Util qw/blessed reftype/;
 

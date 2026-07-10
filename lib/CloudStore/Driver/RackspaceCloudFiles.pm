@@ -5,6 +5,7 @@ package CloudStore::Driver::RackspaceCloudFiles;
 use Role::Tiny::With;
 with 'CloudStore::Role::Driver';
 
+use WebService::Rackspace::CloudFiles;
 use Carp qw(croak confess);
 use Scalar::Util qw/blessed/;
 use Try::Tiny;
@@ -28,7 +29,6 @@ Notes on Rackspace CloudFiles:
 
 sub connect {
   my ($self, %params) = @_;
-  require WebService::Rackspace::CloudFiles;
   $self->{'_cf'} = WebService::Rackspace::CloudFiles->new(
     user => delete $params{'username'},
     key  => delete $params{'key'},
