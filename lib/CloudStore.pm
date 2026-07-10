@@ -1,5 +1,5 @@
 package CloudStore;
-
+our $VERSION = 0.02;
 use strict;
 use warnings;
 use Carp qw/croak/;
@@ -266,7 +266,7 @@ Dondi Michael Stroma, E<lt>dstroma@localE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2016 by Dondi Stroma
+Copyright (C) 2016, 2026 by Dondi Michael Stroma
 
 
 =cut

@@ -1,12 +1,12 @@
 {
-   "abstract" : "It's new $module",
+   "abstract" : "Abstraction layer for cloud file storage.",
    "author" : [
-      "Dondi Michael Stroma <dstroma@gmail.com>"
+      "Dondi Michael Stroma, <dstroma@local>"
    ],
    "dynamic_config" : 0,
    "generated_by" : "Minilla/v3.1.29, CPAN::Meta::Converter version 2.150010",
    "license" : [
-      "perl_5"
+      "unknown"
    ],
    "meta-spec" : {
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
@@ -41,7 +41,19 @@
          }
       },
       "runtime" : {
+         "recommends" : {
+            "WebService::Dropbox" : "0",
+            "WebService::Rackspace::CloudFiles" : "0"
+         },
          "requires" : {
+            "Bytes::Random::Secure" : "0",
+            "Crypt::Mode::CBC" : "0",
+            "DateTime" : "0",
+            "DateTime::Format::RFC3339" : "0",
+            "File::Temp" : "0",
+            "Moo" : "0",
+            "Role::Tiny" : "0",
+            "Role::Tiny::With" : "0",
             "perl" : "5.008001"
          }
       },
@@ -52,7 +64,21 @@
       }
    },
    "release_status" : "unstable",
-   "version" : "0.01",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/dstroma/CloudStore/issues"
+      },
+      "homepage" : "https://github.com/dstroma/CloudStore",
+      "repository" : {
+         "type" : "git",
+         "url" : "https://github.com/dstroma/CloudStore.git",
+         "web" : "https://github.com/dstroma/CloudStore"
+      }
+   },
+   "version" : "0.02",
+   "x_contributors" : [
+      "Dondi Michael Stroma <dstroma@gmail.com>"
+   ],
    "x_serialization_backend" : "JSON::PP version 4.16",
    "x_static_install" : 1
 }
