@@ -149,6 +149,7 @@ sub test_driver {
     $which.'Find a single file returns file object for existing file'
   );
 
+  print "The next test might cause an error message which can be ignored.\n";
   $file = $obj->find($folder_name.'/file_DOES_NOT_EXIST.NOPE');
   ok(
     !defined $file,
@@ -162,6 +163,7 @@ sub test_driver {
     $which.'Delete a file',
   );
 
+  print "The next test might cause an error message which can be ignored.\n";
   ok(
     !defined $obj->find($folder_name.'/file_1.txt'),
     $which.'Find says file is really deleted',

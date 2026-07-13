@@ -39,14 +39,15 @@ sub new {
 sub load_driver {
   my ($class, $driver_name) = @_;
 
+  # No-op if already loaded
   return $drivers{$driver_name} if exists $drivers{$driver_name};
 
   # transform $driver_name to CloudStore::Driver::$driver_name if necessary
-  $class = __PACKAGE__; # Bugfix ... subclass of CloudStore still use CloudStore::Driver
-  my $driver_class = $driver_name =~ m/^$class/ ? $driver_name : $class.'::Driver::'.$driver_name;
-
+  my $driver_class = $driver_name =~ m/^CloudStore::/ ? $driver_name : 'CloudStore::Driver::'.$driver_name;
   return $driver_class if eval "require $driver_class; 1";
-  #return $driver_name  if eval "require $driver_name; 1";
+
+  # Try another approach in case we're dealing with subclasses
+  return $class.'::'.$driver_name if eval "require $class.'::'.$driver_name; 1";
 
   die "Cannot load driver with name $driver_class or $driver_name: $@";
 }
@@ -56,39 +57,10 @@ sub driver {
   $self->{driver};
 }
 
-sub connect {
-  my $self = shift;
-  $self->driver->connect(@_);
-}
-
-sub download {
-  my $self   = shift;
-  $self->driver->download(@_);
-}
-
-sub upload {
-  my $self   = shift;
-  $self->driver->upload(@_);
-}
-
-sub find {
-  my $self   = shift;
-  $self->driver->find(@_);
-}
-
-sub create_folder {
-  my $self = shift;
-  $self->driver->create_folder(@_);
-}
-
-sub delete_folder {
-  my $self = shift;
-  $self->driver->delete_folder(@_);
-}
-
-sub delete_file {
-  my $self = shift;
-  $self->driver->delete_file(@_);
+# Generate a bunch of trivial methods
+no strict 'refs';
+for my $method (qw(connect download upload find create_folder delete_folder delete_file)) {
+  *{$method} = sub { shift->driver->$method(@_) };
 }
 
 1;
@@ -97,13 +69,12 @@ __END__
 
 =head1 NAME
 
-CloudStore - Abstraction layer for cloud file storage.
+CloudStore - Abstraction layer for remote (cloud) file storage services.
 
 =head1 SYNOPSIS
 
     use CloudStore;
-    use CloudStore::Driver::Mock;
-    my $driver = 'Mock'; # or Dropbox, or Rackspace::CloudFiles, ...
+    my $driver = 'Mock';
     my %conn_options = (); # might need username/key/secret/token/...
 
     my $cs = CloudStore->new(driver => $driver);
@@ -212,11 +183,17 @@ remembering the correct order of the parameters.
 LOCAL_SOURCE may be a local filename, a filehandle, or a scalar reference which
 will be dereferenced and used as the content of the upload.
 
-=head2 delete ( REMOTE_FILENAME)
+=head2 delete_file ( REMOTE_FILENAME )
 
     $cloudstore->delete_file('/confidential/secrets.txt');
 
 Deletes a remote file.
+
+=head2 delete_folder ( REMOTE_PATH )
+
+    $cloudstore->delete_folder('/confidential/documents');
+
+Deletes a remote folder.
 
 =head2 find ( REMOTE_FILENAME )
 =head2 find ( in => FOLDER [, prefix => PREFIX ] [, pattern => PATTERN ] )

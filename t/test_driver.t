@@ -65,6 +65,8 @@ done_testing();
         print "\n";
         1;
       } or return;
+
+      print "*** Note your input will be shown on screen ***\n\n";
     }
 
     $skip_first_prompt = 1;
