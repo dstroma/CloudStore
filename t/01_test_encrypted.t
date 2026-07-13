@@ -1,6 +1,5 @@
 use strict;
 use warnings;
-
 use Test::More;
 use CloudStore;
 use CloudStore::Encrypted;
@@ -10,19 +9,6 @@ my @drivers;
 push @drivers, {
   name => 'Mock'
 };
-
-push @drivers, {
-  name      => 'Dropbox',
-  conn_info => { access_token => $ENV{'DROPBOX_ACCESS_TOKEN'} },
-} if eval "require CloudStore::Driver::Dropbox; 1";
-
-push @drivers, {
-  name      => 'RackspaceCloudFiles',
-  conn_info => { 
-    user => $ENV{'RACKSPACE_CLOUDFILES_USER'},
-    key  => $ENV{'RACKSPACE_CLOUDFILES_KEY'}, 
-  },
-} if eval "require CloudStore::Driver::RackspaceCloudFiles; 1";
 
 foreach my $driver (@drivers) {
   my $key_hex = '0123456789abcdef0123456789abcdef';
