@@ -1,6 +1,5 @@
 use strict;
 use warnings;
-
 package CloudStore::Driver::Mock;
 
 use Role::Tiny::With;
@@ -9,8 +8,6 @@ with 'CloudStore::Role::Driver';
 use DateTime;
 use Carp qw/confess confess/;
 use Scalar::Util qw/blessed reftype/;
-
-CloudStore->_register_driver('Mock');
 
 our $storage = {};
 
@@ -157,3 +154,22 @@ sub make_file_object {
 }
 
 1;
+
+=head1 NAME
+
+CloudStore::Driver::Mock - A (mostly) pointless CloudStore driver suitable
+for tesitng.
+
+
+=head1 DESCRIPTION
+
+This module will "upload" and "download" files to and from the same filesystem
+on which it runs.
+
+
+=head1 AUTHOR, COPYRIGHT, and LICENSE
+
+See CloudStore.pm.
+
+
+=cut

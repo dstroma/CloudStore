@@ -1,55 +1,43 @@
 package CloudStore;
-our $VERSION = 0.02;
+our $VERSION = 0.03;
 use strict;
 use warnings;
 use Carp qw/croak/;
 
-my %drivers;
-
-sub _register_driver {
-  my $my_class      = shift;
-  my $name          = shift;
-  my $driver_class  = caller;
-
-  my $does_role;
-  if ($driver_class->can('does') and $driver_class->does('CloudStore::Role::Driver')) {
-    $does_role = 1;
-  } elsif (Role::Tiny::does($driver_class, 'CloudStore::Role::Driver')) {
-    $does_role = 1;
-  }
-  croak "$driver_class does not do role CloudStore::Role::Driver" unless $does_role;
-
-  $drivers{$name} = $driver_class;
-}
-
 sub new {
-  my $class  = shift;
-  my %params = @_;
+  my ($class, %params) = @_;
+  my $driver_name      = delete $params{driver};
 
-  croak "No driver specified" unless exists $params{driver};
+  croak 'No driver specified. Use $class->new(driver => $driver_name).'
+    unless defined $driver_name;
 
-  my $driver_name = delete $params{'driver'};
-  my $driver_class = $class->load_driver($driver_name);
-  my $driver_instance = bless \%params, $driver_class;
-  
-  my $self = { driver => $driver_instance };
-  bless $self, $class;
+  my $driver_class     = $class->load_driver($driver_name);
+  my $driver_instance  = bless \%params, $driver_class;
+  return bless { driver => $driver_instance }, $class;
 }
 
 sub load_driver {
   my ($class, $driver_name) = @_;
 
-  # No-op if already loaded
-  return $drivers{$driver_name} if exists $drivers{$driver_name};
-
   # transform $driver_name to CloudStore::Driver::$driver_name if necessary
   my $driver_class = $driver_name =~ m/^CloudStore::/ ? $driver_name : 'CloudStore::Driver::'.$driver_name;
-  return $driver_class if eval "require $driver_class; 1";
+  return $class->verify_driver($driver_class)
+    if eval "use $driver_class; 1";
 
   # Try another approach in case we're dealing with subclasses
-  return $class.'::'.$driver_name if eval "require $class.'::'.$driver_name; 1";
+  return $class->verify_driver($driver_name)
+    if eval "use $driver_name; 1";
 
   die "Cannot load driver with name $driver_class or $driver_name: $@";
+}
+
+sub verify_driver {
+  my ($self_class, $driver_class) = @_;
+
+  croak "$driver_class is not a valid driver"
+    unless $driver_class->DOES('CloudStore::Role::Driver');
+
+  return $driver_class;
 }
 
 sub driver {
@@ -92,21 +80,17 @@ this reason, the API is somewhat simplistic and lacks such things as ability
 to get or set remote file metadata or ability to fetch an old revision of a
 file.
 
-Various drivers are supplied out of the box, but you may write your own
-as well. Included in this distribution are drivers for Dropbox and Rackspace
-CloudFiles. These drivers are somewhat simple glue code using preexisting
-CPAN modules such as Webservice::Dropbox (in the example of the Dropbox
-driver), but drivers could be implemented directly as standalone modules as
-well.
+Other than a mock driver for testing, drivers must be installed separately.
+Drivers are somewhat simple glue code, usually using preexisting CPAN modules
+such as Webservice::Dropbox (in the example of the Dropbox driver), but drivers
+could be implemented directly as standalone modules as well.
 
 =head1 TERMINOLOGY
 
 The terms "driver" and "backend" are used throughout this documentation.
 
 Driver refers to the Perl module which implements the CloudStore::Role::Driver
-role, and which registers itself with the main CloudStore module. For example,
-CloudStore::Driver::Dropbox is the CloudStore driver for Dropbox, and when
-loaded registers itself under name, 'Dropbox'.
+role.
 
 Backend may refer to the API which is used by the driver. For example, the
 Dropbox HTTP/JSON API. It might also refer to a CPAN module used by the driver
@@ -135,22 +119,13 @@ limitations.
 
 =head2 new ( driver => DRIVER_NAME )
 
-    my $cloudstore = CloudStore->new(driver => 'Dropbox');
+    my $cloudstore = CloudStore->new(driver => $driver);
 
 Create a new instance of CloudStore using the driver whose name is given by the
-driver parameter. The preferred method is to name a driver whose module has
-already been loaded.
-
-The call to new() will first check to see if a driver has been registered with
-the given name. If it has not, it attempts a 
-
-    require CloudStore::Driver::DRIVER_NAME
-
-and if that fails, it attempts to
-
-    require DRIVER_NAME.
-
-If that also fails, the method dies.
+driver parameter. CloudStore will look for a package named
+CloudStore::Driver::$driver or just $driver and will load it, checking it to
+make sure it "DOES" the role CloudStore::Role::Driver. If the package cannot
+be loaded or is not a valid driver, the method dies.
 
 =head2 connect ( @OPTIONS )
 
@@ -158,10 +133,10 @@ If that also fails, the method dies.
 
 Connects to the backend. Any parameters such as username, password or key,
 secret, and token are passed directly to the driver, so those should be supplied
-here. These parameters are specific to each driver. For example, "Mock" takes
-no parameters (or more accurately, will ignore any and all parameters), while
-Rackspace CloudFiles takes a username and password while Dropbox takes a
-key, secret, and token.
+here. These parameters are specific to each driver. For example,
+Mock takes no parameters (or more accurately, will ignore any);
+Rackspace::CloudFiles takes a username and password;
+Dropbox takes a key, secret, and token.
 
 =head2 download ( REMOTE_FILENAME => LOCAL_DESTINATION )
 
@@ -225,7 +200,7 @@ Recursive searching is not supported.
     $cloudstore->create_folder('/cars/fast-cars');
 
 Creates a folder, directory, or similar structure as supported by the backend.
-Note that some backends do not permit nested folders.
+Note that some backends may not permit nested folders.
 
 =head2 delete_folder
 
@@ -243,7 +218,10 @@ Dondi Michael Stroma, E<lt>dstroma@localE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2016, 2026 by Dondi Michael Stroma
+Copyright (C) 2016-2026 by Dondi Michael Stroma.
+
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
 
 
 =cut
