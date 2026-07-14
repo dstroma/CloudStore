@@ -1,12 +1,12 @@
 {
-   "abstract" : "Abstraction layer for cloud file storage.",
+   "abstract" : "Abstraction layer for remote (cloud) file storage services.",
    "author" : [
       "Dondi Michael Stroma, <dstroma@local>"
    ],
    "dynamic_config" : 0,
    "generated_by" : "Minilla/v3.1.29, CPAN::Meta::Converter version 2.150010",
    "license" : [
-      "unknown"
+      "perl_5"
    ],
    "meta-spec" : {
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
@@ -49,7 +49,6 @@
             "Bytes::Random::Secure" : "0",
             "Crypt::Mode::CBC" : "0",
             "DateTime" : "0",
-            "DateTime::Format::RFC3339" : "0",
             "File::Temp" : "0",
             "Moo" : "0",
             "Role::Tiny" : "0",
@@ -75,7 +74,7 @@
          "web" : "https://github.com/dstroma/CloudStore"
       }
    },
-   "version" : "0.02",
+   "version" : "0.03",
    "x_contributors" : [
       "Dondi Michael Stroma <dstroma@gmail.com>"
    ],
