@@ -1,4 +1,8 @@
+use strict;
+use warnings;
+use v5.14;
 package CloudStore::Role::Driver;
+
 use Role::Tiny;
 
 requires qw(

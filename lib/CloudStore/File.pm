@@ -1,7 +1,7 @@
-package CloudStore::File;
-
 use strict;
 use warnings;
+use v5.14;
+package CloudStore::File;
 
 sub new {
   my $class  = shift;

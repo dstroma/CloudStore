@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use v5.14;
 package CloudStore::Driver::Mock;
 
 use Role::Tiny::With;

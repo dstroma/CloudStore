@@ -1,7 +1,9 @@
-package CloudStore;
-our $VERSION = 0.03;
 use strict;
 use warnings;
+use v5.14;
+package CloudStore;
+
+our $VERSION = 0.03;
 use Carp qw/croak/;
 
 sub new {

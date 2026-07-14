@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-
+use v5.14;
 package CloudStore::Test::Driver;
 
 use CloudStore;
