@@ -1,5 +1,11 @@
 Revision history for CloudStore.
 
+{{$NEXT}}
+    - Bump minimum perl to 5.14
+    - Rework how drivers are loaded
+    - Separate drivers out of distribution
+    - Documentation updates and improvements
+
 0.01  Wed Nov 15 17:01:08 2016
-	- original version
+    - original version
 
