@@ -3,7 +3,7 @@ use warnings;
 use v5.14;
 package CloudStore;
 
-our $VERSION = 0.04;
+our $VERSION = 0.05;
 use Carp qw/croak/;
 
 sub new {

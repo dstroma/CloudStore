@@ -1,5 +1,9 @@
 Revision history for CloudStore.
 
+0.05  Wed Jul 15 2026
+    - Remove user prompt function in driver test
+      (It didn't play well with perl testing)
+
 0.04  Tue Jul 14 2026
     - Add test helper sub maybe_prompt
     - Fix changes file
