@@ -1,6 +1,10 @@
 Revision history for CloudStore.
 
-{{$NEXT}}
+0.04  Tue Jul 14 2026
+    - Add test helper sub maybe_prompt
+    - Fix changes file
+
+0.03  Tue Jul 14 2026
     - Bump minimum perl to 5.14
     - Rework how drivers are loaded
     - Separate drivers out of distribution
