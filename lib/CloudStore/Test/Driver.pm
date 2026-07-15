@@ -7,6 +7,7 @@ use CloudStore;
 use Scalar::Util qw/blessed/;
 use Digest::MD5 qw/md5/;
 use Test::More;
+use constant USER_PROMPT_TIMEOUT => 10;
 
 sub test_driver {
   shift if $_[0] eq __PACKAGE__;
@@ -200,6 +201,39 @@ sub md5_file {
   my $content = join '', <$fh>;
   close $fh;
   return md5($content);
+}
+
+{
+  my $skip_first_prompt;
+  my $donot_prompt;
+  sub maybe_prompt {
+    return if $donot_prompt;
+
+    unless ($skip_first_prompt) {
+      print "\nPress ENTER/RETURN within " . USER_PROMPT_TIMEOUT . " seconds to add credentials...";
+      eval {
+        local $SIG{ALRM} = sub {
+          $donot_prompt = 1;
+          die "timeout\n"
+        };
+
+        alarm USER_PROMPT_TIMEOUT;
+        my $garbage = <STDIN>;
+        alarm 0;
+        print "\n";
+        1;
+      } or return;
+
+      print "*** Note your input will be shown on screen ***\n\n";
+    }
+
+    $skip_first_prompt = 1;
+    my $prompt_text = shift;
+    print $prompt_text;
+    my $answer = <STDIN>;
+    chomp $answer;
+    return $answer;
+  }
 }
 
 1;
