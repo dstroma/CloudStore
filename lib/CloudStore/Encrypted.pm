@@ -30,13 +30,15 @@ sub new {
   #die "Key of length $bits is not proper length" unless $bits >= 128 or $bits == 196 or $bits == 256;
 
   my $self = $class->SUPER::new(%params);
-  $self->{key} = $key_bin;
-  $self->{cbc} = $cbc;
+  $self->{cipher} = $cipher;
+  $self->{key}    = $key_bin;
+  $self->{cbc}    = $cbc;
   return $self;
 }
 
-sub key { $_[0]->{key} }
-sub cbc { $_[0]->{cbc} }
+sub key    { $_[0]->{key}    }
+sub cbc    { $_[0]->{cbc}    }
+sub cipher { $_[0]->{cipher} }
 
 sub upload {
   my ($self, $local, $remote) = @_;
@@ -78,18 +80,25 @@ sub upload {
 sub download {
   my ($self, $remote, $local) = @_;
   if (ref $local and ref $local eq 'SCALAR') {
-    my $rv = $self->SUPER::download($remote => $local);
-    $self->parse_header($local);
-    $$local = $self->cbc->decrypt($$local, $self->key, $self->iv);
-    return $rv;
-  } else {
-    my $encfh = File::Temp->new;
-    my $rv = $self->SUPER::download($remote => $encfh);
+    my $return = $self->SUPER::download($remote => $local);
 
-    # Parse encrypted file $tmpfile
+    # Just in case the file is not the expected cipher
+    my ($cipher, $iv) = $self->parse_header($local);
+    my $cbc = $cipher eq $self->cipher ? $self->cbc : Crypt::Mode::CBC->new($cipher);
+
+    # Decrypt and return original return value
+    $$local = $cbc->decrypt($$local, $self->key, $iv);
+    return $return;
+  } else {
+    my $encfh  = File::Temp->new;
+    my $return = $self->SUPER::download($remote => $encfh);
     seek $encfh, 0, 0;
-    $self->parse_header($encfh);
-    $self->cbc->start_decrypt($self->key, $self->iv);
+
+    # Just in case the file is not the expected cipher
+    my ($cipher, $iv) = $self->parse_header($encfh);
+    my $cbc = $cipher eq $self->cipher ? $self->cbc : Crypt::Mode::CBC->new($cipher);
+
+    $cbc->start_decrypt($self->key, $self->iv);
     my $buf;
     my $outfh;
 
@@ -105,7 +114,7 @@ sub download {
     print $outfh $self->cbc->finish;
     close $encfh;
     close $outfh unless ref $local;
-    return $rv;
+    return $return;
   }
 }
 
@@ -115,7 +124,7 @@ sub download_raw {
 
 sub make_header {
   my $self = shift;
-  return 'AES:iv' . $self->iv . ':';
+  return $self->cipher . ':iv' . $self->iv_hex . ':';
 }
 
 sub parse_header {
@@ -123,24 +132,30 @@ sub parse_header {
   my $what = shift;
 
   my $header;
+  my $cipher;
+  my $iv;
+
   if (ref $what and reftype $what eq 'GLOB') {
-    seek $what, 0, 0;
-    read $what, $header, 6+16+1; # length 'AES:iv' + 16 + length ':'
+    seek $what, 0, 0 or die $!;
+    my $buf;
+    while (my $bytes = read $what, $buf, 1) {
+      $header .= $buf;
+      last if ($cipher, $iv) = $header =~ m/^(\w+):iv([a-f0-9]+):/;
+      last if length $header > 1024; # give up
+    }
   } elsif (ref $what and ref $what eq 'SCALAR') {
-    $header = substr($$what, 0, 6+16+1);
-    $$what  = substr($$what, 6+16+1);
+    ($cipher, $iv) = $$what =~ m/^(\w+):iv([a-f0-9]+):/;
+    $$what = substr($$what, length("$cipher:iv$iv:"));
   }
 
-  unless (substr($header, 0, 6) eq 'AES:iv' and substr($header, -1, 1) eq ':') {
-    die "Cannot parse iv from header $header";
-  }
+  die "Cannot parse header! cipher:$cipher, iv:$iv" unless length $cipher and length $iv;
 
-  my $iv = substr $header, 6, 16;
-  return $self->{iv} = $iv;
+  return ($cipher, pack('H*', $iv));
 }
 
-sub generate_iv { shift->{iv} = random_bytes(16); }
-sub iv { shift->{iv}; }
+sub generate_iv { shift->{iv} = random_bytes(16) }
+sub iv          { shift->{iv}                    }
+sub iv_hex      { unpack('H*', shift->iv)        }
 
 1;
 

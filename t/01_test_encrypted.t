@@ -21,6 +21,7 @@ foreach my $driver (@drivers) {
   $cs->upload(\$data => "/test-$$-encrypted-folder/data.txt.enc");
 
   my $data_copy;
+
   $cs->download("/test-$$-encrypted-folder/data.txt.enc" => \$data_copy);
 
   ok(
@@ -54,7 +55,8 @@ foreach my $driver (@drivers) {
   ok(
     $data eq $data_copy,
      "The decrypted data is the same as original after upload/download (using file handles)"
-  );  
+  );
+
 }
 
 done_testing();
