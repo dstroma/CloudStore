@@ -1,6 +1,5 @@
 requires 'perl', '5.014';
 
-requires 'Moo';
 requires 'Role::Tiny';
 requires 'Role::Tiny::With';
 requires 'DateTime';

@@ -46,7 +46,6 @@
             "Crypt::Mode::CBC" : "0",
             "DateTime" : "0",
             "File::Temp" : "0",
-            "Moo" : "0",
             "Role::Tiny" : "0",
             "Role::Tiny::With" : "0",
             "perl" : "v5.14.0"
@@ -70,7 +69,7 @@
          "web" : "https://github.com/dstroma/CloudStore"
       }
    },
-   "version" : "0.05",
+   "version" : "0.06",
    "x_contributors" : [
       "Dondi Michael Stroma <dstroma@gmail.com>"
    ],
