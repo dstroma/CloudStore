@@ -57,6 +57,23 @@ foreach my $driver (@drivers) {
      "The decrypted data is the same as original after upload/download (using file handles)"
   );
 
+  # Test with different cipher for upload and download
+  my $aes_text = 'Whats up with you? How are you doing!';
+  my $cs_aes = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $key_hex, cipher => 'AES');
+  $cs_aes->upload(\$aes_text => "/test-$$-encrypted-folder/aes.txt");
+
+  my $blo_text = 'WHATS UP WITH YOU! how are you doing?';
+  my $cs_blo = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $key_hex, cipher => 'Blowfish');
+  $cs_blo->upload(\$blo_text => "/test-$$-encrypted-folder/blo.txt");
+
+  my $aes_download = '';
+  $cs_blo->download("/test-$$-encrypted-folder/aes.txt" => \$aes_download);
+  ok($aes_download eq $aes_text, "Download with the wrong cipher still works (blo download aes)");
+
+  my $blo_download = '';
+  $cs_aes->download("/test-$$-encrypted-folder/blo.txt" => \$blo_download);
+  ok($blo_download eq $blo_text, "Download with the wrong cipher still works (aes download blo)");
+
 }
 
 done_testing();

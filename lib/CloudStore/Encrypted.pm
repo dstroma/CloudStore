@@ -9,13 +9,20 @@ use Scalar::Util            qw/ reftype /;
 use Crypt::Mode::CBC        ();
 use File::Temp              ();
 
-use constant DEFAULT_CIPHER => 'AES';
+use constant DEFAULT_CIPHER  => 'AES';
+use constant DEFAULT_IV_SIZE => 16;
+
+our %iv_size = (AES => 16, Blowfish => 8);
 
 sub new {
   my ($class, %params) = @_;
-  my $key_hex = delete $params{'key_hex'};
-  my $key_bin = delete $params{'key_bin'};
-  my $cipher  = delete $params{'cipher'} // DEFAULT_CIPHER;
+  my $key_hex =  delete $params{'key_hex'};
+  my $key_bin =  delete $params{'key_bin'};
+  my $cipher  =  delete $params{'cipher'}
+              // DEFAULT_CIPHER;
+  my $iv_size =  delete $params{'iv_size'}
+              // $iv_size{$cipher}
+              // DEFAULT_IV_SIZE;
 
   my $cbc = Crypt::Mode::CBC->new($cipher);
 
@@ -30,15 +37,20 @@ sub new {
   #die "Key of length $bits is not proper length" unless $bits >= 128 or $bits == 196 or $bits == 256;
 
   my $self = $class->SUPER::new(%params);
-  $self->{cipher} = $cipher;
-  $self->{key}    = $key_bin;
-  $self->{cbc}    = $cbc;
+  $self->{cipher}  = $cipher;
+  $self->{key}     = $key_bin;
+  $self->{cbc}     = $cbc;
+  $self->{iv_size} = $iv_size;
   return $self;
 }
 
-sub key    { $_[0]->{key}    }
-sub cbc    { $_[0]->{cbc}    }
-sub cipher { $_[0]->{cipher} }
+sub key         { $_[0]->{key}            }
+sub cbc         { $_[0]->{cbc}            }
+sub cipher      { $_[0]->{cipher}         }
+sub iv_size     { $_[0]->{iv_size}        }
+sub iv          { $_[0]->{iv}             }
+sub iv_hex      { unpack('H*', $_[0]->iv) }
+sub generate_iv { $_[0]->{iv} = random_bytes($_[0]->iv_size) }
 
 sub upload {
   my ($self, $local, $remote) = @_;
@@ -152,10 +164,6 @@ sub parse_header {
 
   return ($cipher, pack('H*', $iv));
 }
-
-sub generate_iv { shift->{iv} = random_bytes(16) }
-sub iv          { shift->{iv}                    }
-sub iv_hex      { unpack('H*', shift->iv)        }
 
 1;
 
