@@ -4,6 +4,7 @@ use Test::More;
 use CloudStore;
 use CloudStore::Encrypted;
 use File::Temp;
+use v5.14;
 
 my @drivers;
 push @drivers, {
@@ -25,6 +26,18 @@ foreach my $driver (@drivers) {
   ok(
     $data eq $data_copy,
     "The decrypted data is the same as original after upload/download (using scalars)"
+  );
+
+  my $data_copy_raw;
+  $cs->download_raw("/test-$$-encrypted-folder/data.txt.enc" => \$data_copy_raw);
+  ok(
+    $data ne $data_copy_raw,
+    "The encrypted data is not equal to the original data"
+  );
+
+  ok(
+    length $data_copy_raw > length $data,
+    "The encrypted data is longer than the original (due to header)"
   );
 
   # Create a tempfile
