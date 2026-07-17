@@ -12,17 +12,22 @@ use File::Temp              ();
 use constant DEFAULT_CIPHER  => 'AES';
 use constant DEFAULT_IV_SIZE => 16;
 
-our %iv_size = (AES => 16, Blowfish => 8);
+our %iv_size = (
+  AES      => 16,
+  Blowfish =>  8,
+  'Crypt::Cipher::AES'      => 16,
+  'Crypt::Cipher::Blowfish' => 8,
+);
 
 sub new {
   my ($class, %params) = @_;
   my $key_hex =  delete $params{'key_hex'};
   my $key_bin =  delete $params{'key_bin'};
-  my $cipher  =  delete $params{'cipher'}
-              // DEFAULT_CIPHER;
-  my $iv_size =  delete $params{'iv_size'}
-              // $iv_size{$cipher}
-              // DEFAULT_IV_SIZE;
+  my $cipher  =  delete $params{'cipher'};
+  my $iv_size =  delete $params{'iv_size'};
+
+  $cipher  //= DEFAULT_CIPHER;
+  $iv_size //= $iv_size{$cipher} // DEFAULT_IV_SIZE;
 
   my $cbc = Crypt::Mode::CBC->new($cipher);
 
@@ -33,9 +38,6 @@ sub new {
     $key_bin = pack 'H*', $key_hex;
   }
 
-  #my $bits = length($key_bin)*8;
-  #die "Key of length $bits is not proper length" unless $bits >= 128 or $bits == 196 or $bits == 256;
-
   my $self = $class->SUPER::new(%params);
   $self->{cipher}  = $cipher;
   $self->{key}     = $key_bin;
@@ -43,14 +45,6 @@ sub new {
   $self->{iv_size} = $iv_size;
   return $self;
 }
-
-sub key         { $_[0]->{key}            }
-sub cbc         { $_[0]->{cbc}            }
-sub cipher      { $_[0]->{cipher}         }
-sub iv_size     { $_[0]->{iv_size}        }
-sub iv          { $_[0]->{iv}             }
-sub iv_hex      { unpack('H*', $_[0]->iv) }
-sub generate_iv { $_[0]->{iv} = random_bytes($_[0]->iv_size) }
 
 sub upload {
   my ($self, $local, $remote) = @_;
@@ -130,14 +124,15 @@ sub download {
   }
 }
 
-sub download_raw {
-  shift->SUPER::download(@_);
-}
-
-sub make_header {
-  my $self = shift;
-  return $self->cipher . ':iv' . $self->iv_hex . ':';
-}
+sub key          { $_[0]->{key}            }
+sub cbc          { $_[0]->{cbc}            }
+sub cipher       { $_[0]->{cipher}         }
+sub iv_size      { $_[0]->{iv_size}        }
+sub iv           { $_[0]->{iv}             }
+sub iv_hex       { unpack('H*', $_[0]->iv) }
+sub generate_iv  { $_[0]->{iv} = random_bytes($_[0]->iv_size)  }
+sub download_raw { shift->SUPER::download(@_)                  }
+sub make_header  { $_[0]->cipher . ':iv' . $_[0]->iv_hex . ':' }
 
 sub parse_header {
   my $self = shift;
@@ -180,22 +175,65 @@ CloudStore::Encrypted - Subclass of CloudStore with automatic encryption.
     my $driver = 'Mock';
     my %conn_options = (); # might need username/key/secret/token/...
 
-    my $cs = CloudStore->new(driver => $driver);
+    my $cs = CloudStore->new(driver => $driver, cipher => 'AES', key => ...);
     $cs->connect(%conn_options);
     $cs->download('testdir/testfile.txt' => './testfile.txt');
     $cs->delete_file('testdir/testfile.txt');
     $cs->upload('somefile.txt' => 'testdir/somefile.txt');
 
+
 =head1 DESCRIPTION
 
-This module is an abstraction layer over various cloud file storage systems,
-offering a unified API. Where possible, it attempts to hide differences in
-backends, with portability being the goal rather than number of features. For
-this reason, the API is somewhat simplistic and lacks such things as ability
-to get or set remote file metadata or ability to fetch an old revision of a
-file.
+This module is a subclass of CloudStore with automatic encryption.
 
-Other than a mock driver for testing, drivers must be installed separately.
-Drivers are somewhat simple glue code, usually using preexisting CPAN modules
-such as Webservice::Dropbox (in the example of the Dropbox driver), but drivers
-could be implemented directly as standalone modules as well.
+
+=head1 DIFFERENCES FROM CloudStore.pm
+
+CloudStore::Encrypted->new takes the following additional arguments:
+
+=over 4
+
+=item key_hex or key_bin
+
+An encryption/decryption key, in hexadecimal or binary format.
+
+=item cipher
+
+A name of a cipher module compatible with Crypt::Mode::CBC. This module
+has been tested with AES and Blowfish. Note decrypting a file will
+select a cipher automatically from the file's header.
+
+=item iv_size
+
+The size of the initialization vector. AES and Blowfish are supplied
+automatically.
+
+=back
+
+=head1 HOW IT WORKS
+
+When encrypting a file, CloudStore::Encrypted will generate an initialization
+vector and encrypt the file using Crypt::Mode::CBC with the chosen cipher.
+A header containing cipher and IV information is prepended to the file in the
+format of CipherName:ivXXXXXXXX:, where the Xs are the IV in hex format.
+
+When decrypting a file, first the header is read to obtain the cipher and IV.
+If the cipher and/or IV conflict with the CloudStore::Encrypted object's cipher
+or IV properties, the file will be decrypted using the appropriate algorithm
+rather than the object's.
+
+
+=head1 AUTHOR
+
+Dondi Michael Stroma, E<lt>dstroma@localE<gt>
+
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2016-2026 by Dondi Michael Stroma.
+
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
+
+
+=cut
