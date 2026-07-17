@@ -4,44 +4,38 @@ use v5.14;
 package CloudStore::Encrypted;
 use parent 'CloudStore';
 
-use Bytes::Random::Secure   qw/ random_bytes /;
-use Scalar::Util            qw/ reftype /;
-use Crypt::Mode::CBC        ();
-use File::Temp              ();
+use Bytes::Random::Secure qw/ random_bytes /;
+use Scalar::Util          qw/ reftype /;
+use Crypt::Mode::CBC      ();
+use File::Temp            ();
 
 use constant DEFAULT_CIPHER  => 'AES';
 use constant DEFAULT_IV_SIZE => 16;
 
-our %iv_size = (
-  AES      => 16,
-  Blowfish =>  8,
-  'Crypt::Cipher::AES'      => 16,
-  'Crypt::Cipher::Blowfish' => 8,
-);
-
 sub new {
   my ($class, %params) = @_;
-  my $key_hex =  delete $params{'key_hex'};
-  my $key_bin =  delete $params{'key_bin'};
-  my $cipher  =  delete $params{'cipher'};
-  my $iv_size =  delete $params{'iv_size'};
+  my $key_hex = delete $params{'key_hex'};
+  my $key_bin = delete $params{'key_bin'};
+  my $cipher  = delete $params{'cipher'};
+  my $iv_size = delete $params{'iv_size'};
+  eval "require $cipher" || eval "require Crypt::Cipher::$cipher";
 
-  $cipher  //= DEFAULT_CIPHER;
-  $iv_size //= $iv_size{$cipher} // DEFAULT_IV_SIZE;
+  $cipher   //= DEFAULT_CIPHER;
+  $iv_size  //= eval { $cipher->blocksize }
+            //  eval { "Crypt::Cipher::$cipher"->blocksize }
+            //  DEFAULT_IV_SIZE;
 
-  my $cbc = Crypt::Mode::CBC->new($cipher);
-
-  # Massage key
-  if ($key_hex and $key_bin) {
+  # Ensure key is binary
+  if (defined $key_hex and defined $key_bin) {
     die 'Specify one key in hex or bin form' unless pack('H*', $key_hex) eq $key_bin;
-  } elsif ($key_hex) {
+  } elsif (defined $key_hex) {
     $key_bin = pack 'H*', $key_hex;
   }
 
   my $self = $class->SUPER::new(%params);
+  $self->{cbc}     = Crypt::Mode::CBC->new($cipher);
   $self->{cipher}  = $cipher;
   $self->{key}     = $key_bin;
-  $self->{cbc}     = $cbc;
   $self->{iv_size} = $iv_size;
   return $self;
 }
@@ -50,41 +44,42 @@ sub upload {
   my ($self, $local, $remote) = @_;
   $self->generate_iv;
 
+  # Upload from string (scalar ref)
   if (ref $local and ref $local eq 'SCALAR') {
     my $encrypted = $self->make_header . $self->cbc->encrypt($$local, $self->key, $self->iv);
     return $self->SUPER::upload(\$encrypted => $remote);
-  } else {
-    # Open output tempfile
-    my $outfh = File::Temp->new || die "Cannot create tempfile, $!$@";
-
-    # Open unencrypted raw file for reading
-    my $infh;
-    if (ref $local) {
-      $infh = $local;
-    } else {
-      open $infh, '<', $local or die "...$!";
-    }
-
-    # Do encryption
-    $self->cbc->start_encrypt($self->key, $self->iv);
-    my $buf;
-    binmode $infh;
-    binmode $outfh;
-    print $outfh $self->make_header;
-    print $outfh $self->cbc->add($buf) while read $infh, $buf, 1024;
-    print $outfh $self->cbc->finish;
-    close $infh if not ref $local;
-
-    # Reset file pointer and upload it
-    seek $outfh, 0, 0;
-    my $rv = $self->SUPER::upload($outfh => $remote);
-    close $outfh;
-    return $rv;
   }
+
+  # Open output tempfile
+  my $outfh = File::Temp->new || die "Cannot create tempfile, $!$@";
+
+  # Open unencrypted raw file for reading
+  my $infh;
+  ref $local ?
+    $infh = $local :
+    open $infh, '<', $local or die "...$!";
+
+  # Do encryption
+  $self->cbc->start_encrypt($self->key, $self->iv);
+  my $buf;
+  binmode $infh;
+  binmode $outfh;
+  print $outfh $self->make_header;
+  print $outfh $self->cbc->add($buf) while read $infh, $buf, 1024;
+  print $outfh $self->cbc->finish;
+  close $infh if not ref $local;
+
+  # Reset file pointer and upload it
+  seek $outfh, 0, 0;
+  my $return = $self->SUPER::upload($outfh => $remote);
+  close $outfh;
+  return $return;
 }
 
 sub download {
   my ($self, $remote, $local) = @_;
+
+  # Download to string (scalar ref)
   if (ref $local and ref $local eq 'SCALAR') {
     my $return = $self->SUPER::download($remote => $local);
 
@@ -95,33 +90,32 @@ sub download {
     # Decrypt and return original return value
     $$local = $cbc->decrypt($$local, $self->key, $iv);
     return $return;
-  } else {
-    my $encfh  = File::Temp->new;
-    my $return = $self->SUPER::download($remote => $encfh);
-    seek $encfh, 0, 0;
-
-    # Just in case the file is not the expected cipher
-    my ($cipher, $iv) = $self->parse_header($encfh);
-    my $cbc = $cipher eq $self->cipher ? $self->cbc : Crypt::Mode::CBC->new($cipher);
-
-    $cbc->start_decrypt($self->key, $self->iv);
-    my $buf;
-    my $outfh;
-
-    # Open output file
-    if (ref $local) {
-      $outfh = $local;
-    } else {
-      open $outfh, '>', $local or die "Cannot open $local: $!";
-    }
-    binmode $encfh;
-    binmode $outfh;
-    print $outfh $self->cbc->add($buf) while read $encfh, $buf, 1024;
-    print $outfh $self->cbc->finish;
-    close $encfh;
-    close $outfh unless ref $local;
-    return $return;
   }
+
+  my $encfh  = File::Temp->new;
+  my $return = $self->SUPER::download($remote => $encfh);
+  seek $encfh, 0, 0;
+
+  # Just in case the file is not the expected cipher
+  my ($cipher, $iv) = $self->parse_header($encfh);
+  my $cbc = $cipher eq $self->cipher ? $self->cbc : Crypt::Mode::CBC->new($cipher);
+
+  $cbc->start_decrypt($self->key, $self->iv);
+  my $buf;
+  my $outfh;
+
+  # Open output file
+  ref $local ?
+    $outfh = $local :
+    open $outfh, '>', $local or die "Cannot open $local: $!";
+
+  binmode $encfh;
+  binmode $outfh;
+  print $outfh $self->cbc->add($buf) while read $encfh, $buf, 1024;
+  print $outfh $self->cbc->finish;
+  close $encfh;
+  close $outfh unless ref $local;
+  return $return;
 }
 
 sub key          { $_[0]->{key}            }
@@ -135,8 +129,7 @@ sub download_raw { shift->SUPER::download(@_)                  }
 sub make_header  { $_[0]->cipher . ':iv' . $_[0]->iv_hex . ':' }
 
 sub parse_header {
-  my $self = shift;
-  my $what = shift;
+  my ($self, $what) = @_;
 
   my $header;
   my $cipher;
@@ -156,7 +149,6 @@ sub parse_header {
   }
 
   die "Cannot parse header! cipher:$cipher, iv:$iv" unless length $cipher and length $iv;
-
   return ($cipher, pack('H*', $iv));
 }
 

@@ -74,6 +74,12 @@ foreach my $driver (@drivers) {
   $cs_aes->download("/test-$$-encrypted-folder/blo.txt" => \$blo_download);
   ok($blo_download eq $blo_text, "Download with the wrong cipher still works (aes download blo)");
 
+  # Test with wrong key
+  my $wrongkey_download;
+  my $cs2 = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $$, cipher => 'AES');
+  eval { $cs2->download("/test-$$-encrypted-folder/aes.txt" => \$wrongkey_download) };
+  ok($wrongkey_download ne $aes_text, "Download with wrong key doesn't decrypt successfully.");
+
 }
 
 done_testing();
