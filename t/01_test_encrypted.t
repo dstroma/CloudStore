@@ -21,7 +21,7 @@ sub do_tests {
   );
 
   throws_error(
-    sub { 1 },
+    sub { },
     'inverted throws_error() passes when sub does not throw error',
     'invert'
   );
@@ -116,6 +116,6 @@ sub throws_error {
   my ($sub, $msg, $invert) = @_;
   ok(
     ($invert ? eval { $sub->(); 1 } : !eval { $sub->(); 1 }),
-     $msg
+    $msg
   );
 }
