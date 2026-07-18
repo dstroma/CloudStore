@@ -6,12 +6,29 @@ use CloudStore::Encrypted;
 use File::Temp;
 use v5.14;
 
-my @drivers;
-push @drivers, {
-  name => 'Mock'
-};
+our $driver = { name => 'Mock' };
 
-foreach my $driver (@drivers) {
+do_tests();
+done_testing();
+
+sub do_tests {
+
+  #############################################################################
+  # Test the test helper
+  throws_error(
+    sub { die },
+    'throws_error() throws error'
+  );
+
+  throws_error(
+    sub { 1 },
+    'inverted throws_error() passes when sub does not throw error',
+    'invert'
+  );
+
+  #############################################################################
+  # Real tests
+
   my $key_hex = '0123456789abcdef0123456789abcdef';
   my $data    = 'Hello cryptic world! o_O' . join '', map { chr($_) } 0..255; # Text plus one byte from 0-255
 
@@ -80,6 +97,25 @@ foreach my $driver (@drivers) {
   eval { $cs2->download("/test-$$-encrypted-folder/aes.txt" => \$wrongkey_download) };
   ok($wrongkey_download ne $aes_text, "Download with wrong key doesn't decrypt successfully.");
 
+  throws_error(
+    sub { CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => 'abcdef', key_bin => 0) },
+    'Multiple keys throws error (hex+bin)'
+  );
+  throws_error(
+    sub { CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => 'abcdef', key_b64 => 'xyz') },
+    'Multiple keys throws error (hex+b64)'
+  );
+  throws_error(
+    sub { CloudStore::Encrypted->new(driver => $driver->{name}, key_bin => 0, key_b64 => 'xyz') },
+    'Multiple keys throws error (bin+b64)'
+  );
 }
 
-done_testing();
+# Test helper
+sub throws_error {
+  my ($sub, $msg, $invert) = @_;
+  ok(
+    ($invert ? eval { $sub->(); 1 } : !eval { $sub->(); 1 }),
+     $msg
+  );
+}

@@ -16,21 +16,21 @@ sub new {
   my ($class, %params) = @_;
   my $key_hex = delete $params{'key_hex'};
   my $key_bin = delete $params{'key_bin'};
+  my $key_b64 = delete $params{'key_b64'};
   my $cipher  = delete $params{'cipher'};
   my $iv_size = delete $params{'iv_size'};
-  eval "require $cipher" || eval "require Crypt::Cipher::$cipher";
 
   $cipher   //= DEFAULT_CIPHER;
-  $iv_size  //= eval { $cipher->blocksize }
-            //  eval { "Crypt::Cipher::$cipher"->blocksize }
+  $iv_size  //= eval "require $cipher; $cipher->blocksize"
+            //  eval "require Crypt::Cipher::$cipher; Crypt::Cipher::$cipher->blocksize"
             //  DEFAULT_IV_SIZE;
 
   # Ensure key is binary
-  if (defined $key_hex and defined $key_bin) {
-    die 'Specify one key in hex or bin form' unless pack('H*', $key_hex) eq $key_bin;
-  } elsif (defined $key_hex) {
-    $key_bin = pack 'H*', $key_hex;
-  }
+  die "Conflicting key formats!"
+    if scalar(grep { defined $_ } ($key_hex, $key_bin, $key_b64)) > 1;
+
+  $key_bin = pack 'H*', $key_hex if defined $key_hex;
+  $key_bin = do { require MIME::Base64; MIME::Base64::decode_base64($key_b64) } if defined $key_b64;
 
   my $self = $class->SUPER::new(%params);
   $self->{cbc}     = Crypt::Mode::CBC->new($cipher);
