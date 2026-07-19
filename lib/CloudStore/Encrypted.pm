@@ -138,7 +138,7 @@ sub parse_header {
   if (ref $what and reftype $what eq 'GLOB') {
     seek $what, 0, 0 or die $!;
     my $buf;
-    while (my $bytes = read $what, $buf, 1) {
+    while (read $what, $buf, 1) {
       $header .= $buf;
       last if ($cipher, $iv) = $header =~ m/^(\w+):iv([a-f0-9]+):/;
       last if length $header > 1024; # give up

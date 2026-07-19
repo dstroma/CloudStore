@@ -58,7 +58,7 @@ sub do_tests {
     "The encrypted data is longer than the original (due to header)"
   );
 
-  # Create a tempfile
+  # Test with a filehandle - Create a tempfile
   $data = reverse $data;
   my $fh_beg = File::Temp->new;
   my $fh_end = File::Temp->new;
@@ -73,6 +73,37 @@ sub do_tests {
     $data eq $data_copy,
      "The decrypted data is the same as original after upload/download (using file handles)"
   );
+
+  # Test with filenames only, not handles or scalars
+  {
+    my $dir = File::Temp->newdir;
+    my $fn  = "$dir/some-file.dat";
+    my $dat = join '', map { chr(int(rand(256))) } 0..1024; #1k of random bytes
+    open my $fh, '>', $fn or die "Cannot open file $fn for writing: $!";
+    binmode $fh;
+    print $fh $dat;
+    close $fh;
+
+    $cs->upload($fn => "/test-$$-encrypted-folder/from-file.dat");
+    $cs->download("/test-$$-encrypted-folder/from-file.dat" => "$fn.cpy");
+
+    open my $infh, '<', "$fn.cpy" or die "Cannot open $fn.cpy for reading: $!";
+    binmode $infh;
+    my $cpy = join '', <$infh>;
+    close $infh;
+
+    ok($dat eq $cpy, "The decrypted data is the same as original after upload/download (using file names)");
+
+    # Check data was encrypted!
+    $cs->download_raw("/test-$$-encrypted-folder/from-file.dat" => "$fn.enc");
+
+    open my $encfh, '<', "$fn.enc" or die "Cannot open $fn.enc for reading: $!";
+    binmode $encfh;
+    my $enc = join '', <$encfh>;
+    close $infh;
+
+    ok(length $enc > length $dat, "The encrypted data is longer than the original (due to header) (using file names)");
+  }
 
   # Test with different cipher for upload and download
   my $aes_text = 'Whats up with you? How are you doing!';
