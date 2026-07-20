@@ -13,6 +13,9 @@ done_testing();
 
 sub do_tests {
 
+  # Standard key
+  my $key_hex = '0123456789abcdef0123456789abcdef';
+
   #############################################################################
   # Test the test helper
   throws_error(
@@ -29,50 +32,84 @@ sub do_tests {
   #############################################################################
   # Real tests
 
-  my $key_hex = '0123456789abcdef0123456789abcdef';
-  my $data    = 'Hello cryptic world! o_O' . join '', map { chr($_) } 0..255; # Text plus one byte from 0-255
+  # Key validation tests
+  {
+    throws_error(
+      sub { CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => 'abcdef', key_bin => 0) },
+                 'Multiple keys throws error (hex+bin)'
+    );
+    throws_error(
+      sub { CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => 'abcdef', key_b64 => 'xyz') },
+                 'Multiple keys throws error (hex+b64)'
+    );
+    throws_error(
+      sub { CloudStore::Encrypted->new(driver => $driver->{name}, key_bin => 0, key_b64 => 'xyz') },
+                 'Multiple keys throws error (bin+b64)'
+    );
+  }
 
-  my $cs = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $key_hex);
-  $cs->connect(%{$driver->{conn_info}||{}});
-  $cs->create_folder("test-$$-encrypted-folder");
-  $cs->upload(\$data => "/test-$$-encrypted-folder/data.txt.enc");
+  # Key conversion tests
+  {
+    {
+      my $cs = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => '123abc456789def');
+      ok($cs->key eq pack('H*', '123abc456789def'), "Key is converted to binary");
+    }
+    {
+      my $cs = CloudStore::Encrypted->new(driver => $driver->{name}, key_bin => "\t\n1234*");
+      ok($cs->key eq "\t\n1234*", "Binary is passed through unchanged");
+    }
+    if (eval { require MIME::Base64; 1 }) {
+      my $cs = CloudStore::Encrypted->new(driver => $driver->{name}, key_b64 => 'abc/xyz/1234');
+      ok($cs->key eq MIME::Base64::decode_base64('abc/xyz/1234'), "base64 key is converted");
+    }
+  }
 
-  my $data_copy;
+  # Upload/download tests
+  {
+    my $data    = 'Hello cryptic world! o_O' . join '', map { chr($_) } 0..255; # Text plus one byte from 0-255
 
-  $cs->download("/test-$$-encrypted-folder/data.txt.enc" => \$data_copy);
+    my $cs = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $key_hex);
+    $cs->connect(%{$driver->{conn_info}||{}});
+    $cs->create_folder("test-$$-encrypted-folder");
+    $cs->upload(\$data => "/test-$$-encrypted-folder/data.txt.enc");
 
-  ok(
-    $data eq $data_copy,
-    "The decrypted data is the same as original after upload/download (using scalars)"
-  );
+    my $data_copy;
 
-  my $data_copy_raw;
-  $cs->download_raw("/test-$$-encrypted-folder/data.txt.enc" => \$data_copy_raw);
-  ok(
-    $data ne $data_copy_raw,
-    "The encrypted data is not equal to the original data"
-  );
+    $cs->download("/test-$$-encrypted-folder/data.txt.enc" => \$data_copy);
 
-  ok(
-    length $data_copy_raw > length $data,
-    "The encrypted data is longer than the original (due to header)"
-  );
+    ok(
+      $data eq $data_copy,
+      "The decrypted data is the same as original after upload/download (using scalars)"
+    );
 
-  # Test with a filehandle - Create a tempfile
-  $data = reverse $data;
-  my $fh_beg = File::Temp->new;
-  my $fh_end = File::Temp->new;
-  print $fh_beg $data;
-  seek $fh_beg, 0, 0;
+    my $data_copy_raw;
+    $cs->download_raw("/test-$$-encrypted-folder/data.txt.enc" => \$data_copy_raw);
+    ok(
+      $data ne $data_copy_raw,
+      "The encrypted data is not equal to the original data"
+    );
 
-  $cs->upload($fh_beg => "/test-$$-encrypted-folder/data-r.txt.enc");
-  $cs->download("/test-$$-encrypted-folder/data-r.txt.enc" => $fh_end);
-  seek $fh_end, 0, 0;
-  $data_copy = join '', <$fh_end>;
-  ok(
-    $data eq $data_copy,
-     "The decrypted data is the same as original after upload/download (using file handles)"
-  );
+    ok(
+      length $data_copy_raw > length $data,
+      "The encrypted data is longer than the original (due to header)"
+    );
+
+    # Test with a filehandle - Create a tempfile
+    $data = reverse $data;
+    my $fh_beg = File::Temp->new;
+    my $fh_end = File::Temp->new;
+    print $fh_beg $data;
+    seek $fh_beg, 0, 0;
+
+    $cs->upload($fh_beg => "/test-$$-encrypted-folder/data-r.txt.enc");
+    $cs->download("/test-$$-encrypted-folder/data-r.txt.enc" => $fh_end);
+    seek $fh_end, 0, 0;
+    $data_copy = join '', <$fh_end>;
+    ok(
+      $data eq $data_copy,
+      "The decrypted data is the same as original after upload/download (using file handles)"
+    );
+  }
 
   # Test with filenames only, not handles or scalars
   {
@@ -84,6 +121,7 @@ sub do_tests {
     print $fh $dat;
     close $fh;
 
+    my $cs = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $key_hex);
     $cs->upload($fn => "/test-$$-encrypted-folder/from-file.dat");
     $cs->download("/test-$$-encrypted-folder/from-file.dat" => "$fn.cpy");
 
@@ -106,40 +144,29 @@ sub do_tests {
   }
 
   # Test with different cipher for upload and download
-  my $aes_text = 'Whats up with you? How are you doing!';
-  my $cs_aes = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $key_hex, cipher => 'AES');
-  $cs_aes->upload(\$aes_text => "/test-$$-encrypted-folder/aes.txt");
+  {
+    my $aes_text = 'Whats up with you? How are you doing!';
+    my $cs_aes = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $key_hex, cipher => 'AES');
+    $cs_aes->upload(\$aes_text => "/test-$$-encrypted-folder/aes.txt");
 
-  my $blo_text = 'WHATS UP WITH YOU! how are you doing?';
-  my $cs_blo = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $key_hex, cipher => 'Blowfish');
-  $cs_blo->upload(\$blo_text => "/test-$$-encrypted-folder/blo.txt");
+    my $blo_text = 'WHATS UP WITH YOU! how are you doing?';
+    my $cs_blo = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $key_hex, cipher => 'Blowfish');
+    $cs_blo->upload(\$blo_text => "/test-$$-encrypted-folder/blo.txt");
 
-  my $aes_download = '';
-  $cs_blo->download("/test-$$-encrypted-folder/aes.txt" => \$aes_download);
-  ok($aes_download eq $aes_text, "Download with the wrong cipher still works (blo download aes)");
+    my $aes_download = '';
+    $cs_blo->download("/test-$$-encrypted-folder/aes.txt" => \$aes_download);
+    ok($aes_download eq $aes_text, "Download with the wrong cipher still works (blo download aes)");
 
-  my $blo_download = '';
-  $cs_aes->download("/test-$$-encrypted-folder/blo.txt" => \$blo_download);
-  ok($blo_download eq $blo_text, "Download with the wrong cipher still works (aes download blo)");
+    my $blo_download = '';
+    $cs_aes->download("/test-$$-encrypted-folder/blo.txt" => \$blo_download);
+    ok($blo_download eq $blo_text, "Download with the wrong cipher still works (aes download blo)");
 
-  # Test with wrong key
-  my $wrongkey_download;
-  my $cs2 = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => $$, cipher => 'AES');
-  eval { $cs2->download("/test-$$-encrypted-folder/aes.txt" => \$wrongkey_download) };
-  ok($wrongkey_download ne $aes_text, "Download with wrong key doesn't decrypt successfully.");
-
-  throws_error(
-    sub { CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => 'abcdef', key_bin => 0) },
-    'Multiple keys throws error (hex+bin)'
-  );
-  throws_error(
-    sub { CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => 'abcdef', key_b64 => 'xyz') },
-    'Multiple keys throws error (hex+b64)'
-  );
-  throws_error(
-    sub { CloudStore::Encrypted->new(driver => $driver->{name}, key_bin => 0, key_b64 => 'xyz') },
-    'Multiple keys throws error (bin+b64)'
-  );
+    # Test with wrong key
+    my $wrongkey_download;
+    my $cs2 = CloudStore::Encrypted->new(driver => $driver->{name}, key_hex => '9876', cipher => 'AES');
+    eval { $cs2->download("/test-$$-encrypted-folder/aes.txt" => \$wrongkey_download) };
+    ok($wrongkey_download ne $aes_text, "Download with wrong key doesn't decrypt successfully.");
+  }
 }
 
 # Test helper
